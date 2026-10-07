@@ -56,15 +56,19 @@ static NSString *const PLUGIN_NAME = @"IonicDeeplinkPlugin";
         return;
     }
 
+    IonicDeeplinkPlugin *plugin = nil;
     CDVViewController *cdvVC = [self ionic_findCDVViewController];
     if (cdvVC == nil) {
         NSLog(@"IonicDeepLinkPlugin: CDVViewController not found in scene window");
-        return;
+    } else {
+        plugin = [cdvVC getCommandInstance:PLUGIN_NAME];
     }
 
-    IonicDeeplinkPlugin *plugin = [cdvVC getCommandInstance:PLUGIN_NAME];
     if (plugin == nil) {
-        NSLog(@"IonicDeepLinkPlugin: Unable to get plugin instance from CDVViewController");
+        // Cold start: the CDVViewController has not loaded its view yet, so
+        // no plugin exists. Queue the link for pluginInitialize to deliver.
+        NSLog(@"IonicDeepLinkPlugin: Plugin not ready, queueing scene user activity %@", userActivity.webpageURL);
+        [IonicDeeplinkPlugin queuePendingUserActivity:userActivity];
         return;
     }
 

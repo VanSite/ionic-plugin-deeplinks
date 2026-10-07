@@ -2,10 +2,28 @@
 
 #import <Cordova/CDVAvailability.h>
 
+// On a cold start iOS hands the universal link to the scene delegate in
+// scene:willConnectToSession:options:, but cordova-ios only creates plugins
+// in CDVViewController's viewDidLoad, which runs after that. The link waits
+// here until pluginInitialize picks it up. Main thread only.
+static NSUserActivity *pendingUserActivity = nil;
+
 @implementation IonicDeeplinkPlugin
+
++ (void)queuePendingUserActivity:(NSUserActivity *)userActivity {
+  pendingUserActivity = userActivity;
+}
 
 - (void)pluginInitialize {
   _handlers = [[NSMutableArray alloc] init];
+
+  if (pendingUserActivity != nil) {
+    NSUserActivity *userActivity = pendingUserActivity;
+    pendingUserActivity = nil;
+    NSLog(@"IonicDeepLinkPlugin: Consuming pending user activity %@", userActivity.webpageURL);
+    // Sets _lastEvent; onDeepLink delivers it once JS subscribes.
+    [self handleContinueUserActivity:userActivity];
+  }
 }
 
 /* ------------------------------------------------------------- */
