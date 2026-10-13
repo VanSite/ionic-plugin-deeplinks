@@ -8,10 +8,18 @@
 // here until pluginInitialize picks it up. Main thread only.
 static NSUserActivity *pendingUserActivity = nil;
 
+// Same for a custom-scheme URL: CDVSceneDelegate posts it as
+// CDVPluginHandleOpenURLNotification before any plugin observes it.
+static NSURL *pendingURL = nil;
+
 @implementation IonicDeeplinkPlugin
 
 + (void)queuePendingUserActivity:(NSUserActivity *)userActivity {
   pendingUserActivity = userActivity;
+}
+
++ (void)queuePendingURL:(NSURL *)url {
+  pendingURL = url;
 }
 
 - (void)pluginInitialize {
@@ -23,6 +31,23 @@ static NSUserActivity *pendingUserActivity = nil;
     NSLog(@"IonicDeepLinkPlugin: Consuming pending user activity %@", userActivity.webpageURL);
     // Sets _lastEvent; onDeepLink delivers it once JS subscribes.
     [self handleContinueUserActivity:userActivity];
+  }
+
+  if (pendingURL != nil) {
+    NSURL *url = pendingURL;
+    pendingURL = nil;
+    NSLog(@"IonicDeepLinkPlugin: Consuming pending URL %@", url);
+    [self handleLink:url];
+  }
+}
+
+// Custom-scheme URLs while the app is running. With the scene lifecycle iOS
+// no longer calls application:openURL:options:; CDVSceneDelegate posts this
+// notification instead.
+- (void)handleOpenURL:(NSNotification *)notification {
+  NSURL *url = notification.object;
+  if ([url isKindOfClass:[NSURL class]]) {
+    [self handleLink:url];
   }
 }
 

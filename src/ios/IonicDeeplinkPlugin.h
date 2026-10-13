@@ -19,6 +19,9 @@
 // (cold start via the scene delegate). Consumed once in pluginInitialize.
 + (void)queuePendingUserActivity:(NSUserActivity *)userActivity;
 
+// Same for custom-scheme URLs (vansiteapp://) that launch the app.
++ (void)queuePendingURL:(NSURL *)url;
+
 - (void)sendToJs;
 
 - (CDVPluginResult*)createResult:(NSURL *)url;
