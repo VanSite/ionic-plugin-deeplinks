@@ -44,6 +44,17 @@ static NSString *const PLUGIN_NAME = @"IonicDeeplinkPlugin";
     for (NSUserActivity *userActivity in connectionOptions.userActivities) {
         [self ionic_handleUserActivity:userActivity];
     }
+
+    // Cold-start custom-scheme URL: the original call above posted it as a
+    // notification, which no plugin observes yet. Queue it for
+    // pluginInitialize. If the plugin already exists it has handled the
+    // notification, so queueing would deliver the URL twice.
+    for (UIOpenURLContext *context in connectionOptions.URLContexts) {
+        if ([self ionic_commandInstance] == nil) {
+            NSLog(@"IonicDeepLinkPlugin: Plugin not ready, queueing scene URL %@", context.URL);
+            [IonicDeeplinkPlugin queuePendingURL:context.URL];
+        }
+    }
 }
 
 - (void)scene:(UIScene *)scene continueUserActivity:(NSUserActivity *)userActivity {
@@ -56,13 +67,7 @@ static NSString *const PLUGIN_NAME = @"IonicDeeplinkPlugin";
         return;
     }
 
-    IonicDeeplinkPlugin *plugin = nil;
-    CDVViewController *cdvVC = [self ionic_findCDVViewController];
-    if (cdvVC == nil) {
-        NSLog(@"IonicDeepLinkPlugin: CDVViewController not found in scene window");
-    } else {
-        plugin = [cdvVC getCommandInstance:PLUGIN_NAME];
-    }
+    IonicDeeplinkPlugin *plugin = [self ionic_commandInstance];
 
     if (plugin == nil) {
         // Cold start: the CDVViewController has not loaded its view yet, so
@@ -74,6 +79,15 @@ static NSString *const PLUGIN_NAME = @"IonicDeeplinkPlugin";
 
     NSLog(@"IonicDeepLinkPlugin: Forwarding scene user activity %@", userActivity.webpageURL);
     [plugin handleContinueUserActivity:userActivity];
+}
+
+- (IonicDeeplinkPlugin *)ionic_commandInstance {
+    CDVViewController *cdvVC = [self ionic_findCDVViewController];
+    if (cdvVC == nil) {
+        NSLog(@"IonicDeepLinkPlugin: CDVViewController not found in scene window");
+        return nil;
+    }
+    return [cdvVC getCommandInstance:PLUGIN_NAME];
 }
 
 - (CDVViewController *)ionic_findCDVViewController {
